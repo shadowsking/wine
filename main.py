@@ -1,9 +1,12 @@
+import argparse
 from collections import defaultdict
 from datetime import datetime
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 import pandas
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+YEAR_OF_CREATION = 1920
 
 
 def get_year_text(start_year):
@@ -16,25 +19,41 @@ def get_year_text(start_year):
     return f"{year} лет"
 
 
-env = Environment(
-    loader=FileSystemLoader('.'),
-    autoescape=select_autoescape(['html', 'xml'])
-)
+def main():
+    parser = argparse.ArgumentParser(
+        description="Website of the author's wine store"
+    )
+    parser.add_argument(
+        "-p",
+        "--path",
+        help="Path to excel document",
+        default="wine.example.xlsx",
+    )
+    args = parser.parse_args()
 
-template = env.get_template('template.html')
+    env = Environment(
+        loader=FileSystemLoader("."),
+        autoescape=select_autoescape(["html", "xml"])
+    )
+    template = env.get_template("template.html")
 
-categories = defaultdict(list)
-wines = pandas.read_excel("wine.xlsx", na_values=['N/A', 'NA'], keep_default_na=False)
-for index, row in wines.iterrows():
-    categories[row.get("Категория")].append(row.to_dict())
+    categories = defaultdict(list)
+    wines = pandas.read_excel(args.path, na_values=["N/A", "NA"], keep_default_na=False)
+    for _, wine in wines.iterrows():
+        categories[wine["Категория"]].append(wine.to_dict())
 
-rendered_page = template.render(
-    year_text=get_year_text(1920),
-    categories=categories
-)
+    rendered_page = template.render(
+        year_text=get_year_text(YEAR_OF_CREATION),
+        categories=categories
+    )
 
-with open('index.html', 'w', encoding="utf8") as file:
-    file.write(rendered_page)
+    with open("index.html", "w", encoding="utf8") as file:
+        file.write(rendered_page)
 
-server = HTTPServer(('0.0.0.0', 8000), SimpleHTTPRequestHandler)
-server.serve_forever()
+    server = HTTPServer(("0.0.0.0", 8000), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+
+
+if __name__ == "__main__":
+    main()
